@@ -1,0 +1,1 @@
+roc_auc = roc_auc_score(y_test, proba, multi_class="ovr", average="macro")
