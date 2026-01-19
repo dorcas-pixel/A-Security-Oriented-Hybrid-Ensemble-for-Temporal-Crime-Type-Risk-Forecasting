@@ -1,0 +1,14 @@
+# Aggregate predicted threats over time
+test_df = pd.DataFrame({
+    "date": dates[dates > split_date],
+    "predicted_threat": y_pred
+})
+
+daily_risk = test_df.groupby(test_df["date"].dt.date).size()
+
+# Detect first significant rise (early warning)
+threshold = daily_risk.mean() + daily_risk.std()
+early_warning_day = daily_risk[daily_risk > threshold].index.min()
+peak_day = daily_risk.idxmax()
+
+early_warning_gain = (peak_day - early_warning_day).days
