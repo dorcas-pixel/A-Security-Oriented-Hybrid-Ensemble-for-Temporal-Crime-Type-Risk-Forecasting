@@ -1,0 +1,9 @@
+print("=== IJIS PRIMARY METRICS (TEMPORAL HOLD-OUT) ===")
+print(f"Macro-F1: {macro_f1:.4f}")
+print(f"ROC–AUC: {roc_auc:.4f}")
+print(f"False Alarm Rate (FAR): {FAR:.4f}")
+print(f"Missed Threat Rate (MTR): {MTR:.4f}")
+print(f"Early-Warning Gain (Δt days): {early_warning_gain}")
+
+print("\n=== TEMPORAL STABILITY ===")
+print(stability_df)
