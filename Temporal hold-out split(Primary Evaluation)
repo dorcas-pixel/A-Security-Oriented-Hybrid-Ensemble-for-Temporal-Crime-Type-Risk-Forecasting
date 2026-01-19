@@ -1,0 +1,8 @@
+# Temporal split: 80% past → 20% future
+split_date = dates.quantile(0.8)
+
+X_train = X[dates <= split_date]
+X_test = X[dates > split_date]
+
+y_train = y[dates <= split_date]
+y_test = y[dates > split_date]
