@@ -1,0 +1,140 @@
+from google.colab import drive
+drive.mount('/content/drive')
+
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import (
+    f1_score, roc_auc_score, confusion_matrix
+)
+from sklearn.model_selection import TimeSeriesSplit
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.tree import DecisionTreeClassifier
+
+# Load dataset
+df = pd.read_csv("/content/drive/MyDrive/train.csv")
+
+# Parse datetime
+df["Dates"] = pd.to_datetime(df["Dates"])
+df = df.sort_values("Dates")
+
+# Encode target
+le = LabelEncoder()
+df["Category_enc"] = le.fit_transform(df["Category"])
+
+# Basic feature selection (IJIS reviewers prefer simplicity)
+features = ["X", "Y"]
+X = df[features]
+y = df["Category_enc"]
+dates = df["Dates"]
+
+# Temporal split: 80% past → 20% future
+split_date = dates.quantile(0.8)
+
+X_train = X[dates <= split_date]
+X_test = X[dates > split_date]
+
+y_train = y[dates <= split_date]
+y_test = y[dates > split_date]
+
+gbm = GradientBoostingClassifier(
+    n_estimators=100,      # default is 100, keep or reduce
+    max_depth=3,           # limit tree depth
+    subsample=0.7,         # stochastic boosting (much faster)
+    random_state=42
+)
+
+X_train_small = X_train.sample(frac=0.4, random_state=42)
+y_train_small = y_train.loc[X_train_small.index]
+
+gbm.fit(X_train_small, y_train_small)
+dt.fit(X_train_small, y_train_small)
+
+# Soft voting (average probabilities)
+proba = (gbm.predict_proba(X_test) + dt.predict_proba(X_test)) / 2
+y_pred = np.argmax(proba, axis=1)
+
+macro_f1 = f1_score(y_test, y_pred, average="macro")
+roc_auc = roc_auc_score(y_test, proba, multi_class="ovr", average="macro")
+cm = confusion_matrix(y_test, y_pred)
+
+FP = cm.sum(axis=0) - np.diag(cm)
+FN = cm.sum(axis=1) - np.diag(cm)
+TP = np.diag(cm)
+TN = cm.sum() - (FP + FN + TP)
+
+FAR = FP.sum() / (FP.sum() + TN.sum())
+MTR = FN.sum() / (FN.sum() + TP.sum())
+
+# Aggregate predicted threats over time
+test_df = pd.DataFrame({
+    "date": dates[dates > split_date],
+    "predicted_threat": y_pred
+})
+
+daily_risk = test_df.groupby(test_df["date"].dt.date).size()
+
+# Detect first significant rise (early warning)
+threshold = daily_risk.mean() + daily_risk.std()
+early_warning_day = daily_risk[daily_risk > threshold].index.min()
+peak_day = daily_risk.idxmax()
+
+early_warning_gain = (peak_day - early_warning_day).days
+
+from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.model_selection import TimeSeriesSplit
+from sklearn.metrics import f1_score, confusion_matrix
+from joblib import Parallel, delayed
+import numpy as np
+import pandas as pd
+
+# Initialize models
+gbm = HistGradientBoostingClassifier(
+    max_iter=200,       # fewer iterations = faster
+    max_depth=5,        # limit tree depth
+    learning_rate=0.1,  
+    early_stopping=True,
+    random_state=42
+)
+dt = DecisionTreeClassifier(max_depth=10, random_state=42)
+
+tscv = TimeSeriesSplit(n_splits=3)
+
+def process_split(train_idx, test_idx, X, y, gbm, dt):
+    X_tr, X_te = X.values[train_idx], X.values[test_idx]
+    y_tr, y_te = y.values[train_idx], y.values[test_idx]
+
+    # Fit models
+    gbm.fit(X_tr, y_tr)
+    dt.fit(X_tr, y_tr)
+
+    # Predict probabilities and average
+    proba = (gbm.predict_proba(X_te) + dt.predict_proba(X_te)) / 2
+    y_hat = np.argmax(proba, axis=1)
+
+    # Metrics
+    cm = confusion_matrix(y_te, y_hat)
+    far = (cm.sum() - np.trace(cm)) / cm.sum()
+    macro_f1 = f1_score(y_te, y_hat, average="macro")
+
+    return {"Macro-F1": macro_f1, "FAR": far}
+
+# Parallel processing of splits
+stability_results = Parallel(n_jobs=-1)(
+    delayed(process_split)(train_idx, test_idx, X, y, gbm, dt)
+    for train_idx, test_idx in tscv.split(X)
+)
+
+stability_df = pd.DataFrame(stability_results)
+print(stability_df)
+
+print("=== PRIMARY METRICS (TEMPORAL HOLD-OUT) ===")
+print(f"Macro-F1: {macro_f1:.4f}")
+print(f"ROC–AUC: {roc_auc:.4f}")
+print(f"False Alarm Rate (FAR): {FAR:.4f}")
+print(f"Missed Threat Rate (MTR): {MTR:.4f}")
+print(f"Early-Warning Gain (Δt days): {early_warning_gain}")
+
+print("\n=== TEMPORAL STABILITY ===")
+print(stability_df)
