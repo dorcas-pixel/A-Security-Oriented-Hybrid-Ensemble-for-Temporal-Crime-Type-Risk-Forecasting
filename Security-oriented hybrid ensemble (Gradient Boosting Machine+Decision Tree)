@@ -1,0 +1,9 @@
+gbm = GradientBoostingClassifier(random_state=42)
+dt = DecisionTreeClassifier(max_depth=10, random_state=42)
+
+gbm.fit(X_train, y_train)
+dt.fit(X_train, y_train)
+
+# Soft voting (average probabilities)
+proba = (gbm.predict_proba(X_test) + dt.predict_proba(X_test)) / 2
+y_pred = np.argmax(proba, axis=1)
