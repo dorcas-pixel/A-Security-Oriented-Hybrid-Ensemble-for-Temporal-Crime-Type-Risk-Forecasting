@@ -1,0 +1,25 @@
+tscv = TimeSeriesSplit(n_splits=3)
+
+stability_results = []
+
+for train_idx, test_idx in tscv.split(X):
+    X_tr, X_te = X.iloc[train_idx], X.iloc[test_idx]
+    y_tr, y_te = y.iloc[train_idx], y.iloc[test_idx]
+
+    gbm.fit(X_tr, y_tr)
+    dt.fit(X_tr, y_tr)
+
+    proba = (gbm.predict_proba(X_te) + dt.predict_proba(X_te)) / 2
+    y_hat = np.argmax(proba, axis=1)
+
+    stability_results.append({
+        "Macro-F1": f1_score(y_te, y_hat, average="macro"),
+        "FAR": (
+            (confusion_matrix(y_te, y_hat).sum(axis=0)
+             - np.diag(confusion_matrix(y_te, y_hat))).sum()
+            /
+            confusion_matrix(y_te, y_hat).sum()
+        )
+    })
+
+stability_df = pd.DataFrame(stability_results)
