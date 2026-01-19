@@ -1,0 +1,9 @@
+cm = confusion_matrix(y_test, y_pred)
+
+FP = cm.sum(axis=0) - np.diag(cm)
+FN = cm.sum(axis=1) - np.diag(cm)
+TP = np.diag(cm)
+TN = cm.sum() - (FP + FN + TP)
+
+FAR = FP.sum() / (FP.sum() + TN.sum())
+MTR = FN.sum() / (FN.sum() + TP.sum())
