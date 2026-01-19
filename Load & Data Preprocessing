@@ -1,0 +1,16 @@
+# Load dataset
+df = pd.read_csv("san_francisco_crime.csv")
+
+# Parse datetime
+df["Dates"] = pd.to_datetime(df["Dates"])
+df = df.sort_values("Dates")
+
+# Encode target
+le = LabelEncoder()
+df["Category_enc"] = le.fit_transform(df["Category"])
+
+# Basic feature selection (IJIS reviewers prefer simplicity)
+features = ["X", "Y"]
+X = df[features]
+y = df["Category_enc"]
+dates = df["Dates"]
